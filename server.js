@@ -176,6 +176,40 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Serve static files for browser preview (e.g. http://localhost:3000)
+    if (req.method === 'GET') {
+        let reqPath = parsedUrl.pathname;
+        if (reqPath === '/' || reqPath === '') {
+            reqPath = '/popup.html';
+        }
+
+        // Prevent directory traversal or accessing sensitive files
+        const safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
+        if (safePath.startsWith('/.') || safePath.includes('.env') || safePath.includes('package')) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Access denied' }));
+            return;
+        }
+
+        const filePath = path.join(__dirname, safePath);
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            const ext = path.extname(filePath).toLowerCase();
+            const mimeTypes = {
+                '.html': 'text/html; charset=utf-8',
+                '.css': 'text/css; charset=utf-8',
+                '.js': 'application/javascript; charset=utf-8',
+                '.json': 'application/json; charset=utf-8',
+                '.png': 'image/png',
+                '.svg': 'image/svg+xml'
+            };
+
+            const contentType = mimeTypes[ext] || 'application/octet-stream';
+            res.writeHead(200, { 'Content-Type': contentType });
+            fs.createReadStream(filePath).pipe(res);
+            return;
+        }
+    }
+
     // Default 404
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Endpoint not found' }));
@@ -183,5 +217,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`PromptPilot backend server running at http://localhost:${PORT}`);
+    console.log(`Web preview available at http://localhost:${PORT}/popup.html`);
     console.log(`Groq Provider active with model: ${DEFAULT_MODEL}`);
 });
