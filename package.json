@@ -1,0 +1,14 @@
+{
+  "name": "promptpilot-backend",
+  "version": "1.2.0",
+  "description": "Backend service for PromptPilot Chrome Extension with Groq AI",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["promptpilot", "groq", "ai", "chrome-extension"],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PromptPilot</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- ChatGPT Style Header -->
+        <header class="app-header">
+            <div class="brand-group">
+                <div class="brand-avatar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+                    </svg>
+                </div>
+                <div class="brand-title">
+                    <span class="brand-name">PromptPilot</span>
+                </div>
+            </div>
+
+            <!-- ChatGPT Segmented Capsule Tabs -->
+            <div class="capsule-tabs" id="nav-tabs">
+                <button class="capsule-tab active nav-tab" data-tab="pilot">Pilot</button>
+                <button class="capsule-tab nav-tab" data-tab="history">History</button>
+            </div>
+
+            <!-- Settings Trigger -->
+            <button id="settings-btn" class="chatgpt-icon-btn" aria-label="Settings" title="Settings">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
+        </header>
+
+        <!-- ChatGPT Style Settings Drawer -->
+        <div id="settings-wrapper" class="settings-wrapper">
+            <div id="settings-panel" class="settings-card">
+                <div class="settings-card-header">
+                    <h3>Inference Settings</h3>
+                    <button id="close-settings" class="chatgpt-icon-btn-small" aria-label="Close settings">✕</button>
+                </div>
+                <div class="settings-body">
+                    <div class="form-group">
+                        <label>AI Inference Engine</label>
+                        <div class="backend-status-pill">
+                            <span class="status-dot online"></span>
+                            <span id="backend-status-text">Groq LPU (Backend Key Active)</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="model-select">Groq Model</label>
+                        <select id="model-select" class="form-select">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <input type="text" id="custom-model-input" class="form-input-sub hidden" placeholder="Enter custom model id">
+                    </div>
+                    <div class="form-group">
+                        <label for="backend-url-input">Backend Server URL</label>
+                        <input type="text" id="backend-url-input" class="form-input" placeholder="http://localhost:3000" value="http://localhost:3000">
+                    </div>
+                    <div class="form-group">
+                        <label for="theme-select">Appearance Theme</label>
+                        <select id="theme-select" class="form-select">
+                            <option value="default" selected>Default (ChatGPT Slate)</option>
+                            <option value="pitch-black">Dark (Pitch Black)</option>
+                            <option value="light">Light Mode</option>
+                        </select>
+                    </div>
+                    <button id="save-key" class="btn-chatgpt-primary">Save Preferences</button>
+                    <div id="key-status" class="key-status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN VIEW (PILOT) -->
+        <div id="pilot-view" class="view active">
+            <main class="main-content">
+                <!-- Quick Template Chips (ChatGPT suggestion style) -->
+                <div id="quick-templates" class="quick-templates">
+                    <button class="chip" data-template="fix-code" title="Insert code debugging template">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="16 18 22 12 16 6"></polyline>
+                            <polyline points="8 6 2 12 8 18"></polyline>
+                        </svg>
+                        <span>Fix Code</span>
+                    </button>
+                    <button class="chip" data-template="email" title="Insert email polishing template">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                        <span>Email Polish</span>
+                    </button>
+                    <button class="chip" data-template="summarize" title="Insert summarization template">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="21" y1="10" x2="3" y2="10"></line>
+                            <line x1="21" y1="6" x2="3" y2="6"></line>
+                            <line x1="21" y1="14" x2="3" y2="14"></line>
+                            <line x1="21" y1="18" x2="7" y2="18"></line>
+                        </svg>
+                        <span>Summarize</span>
+                    </button>
+                </div>
+
+                <!-- Signature ChatGPT Prompt Box -->
+                <div class="chatgpt-prompt-card">
+                    <textarea id="prompt-input"
+                        placeholder="Message PromptPilot (e.g. Draft a proposal for organic coffee branding...)"
+                        rows="3"></textarea>
+
+                    <div class="prompt-card-toolbar">
+                        <div class="toolbar-left">
+                            <div class="tone-select-container">
+                                <select id="tone-select" class="tone-select" aria-label="Select tone">
+                                    <option value="Standard">Standard Tone</option>
+                                    <option value="Professional">Professional</option>
+                                    <option value="Creative">Creative</option>
+                                    <option value="Coder">Coder Mode</option>
+                                    <option value="Academic">Academic</option>
+                                    <option value="ELI5">5-Year-Old</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="toolbar-center">
+                            <span id="char-count" class="meta-counter">0 chars</span>
+                        </div>
+
+                        <div class="toolbar-right">
+                            <button id="generate-btn" class="chatgpt-send-btn" aria-label="Pilot Prompt" title="Pilot Prompt (⌘/Ctrl + Enter)">
+                                <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 4l-7 7 1.41 1.41L11 7.83V20h2V7.83l4.59 4.58L19 11l-7-7z"/>
+                                </svg>
+                                <span class="spinner hidden"></span>
+                            </button>
+                            <button id="stop-btn" class="chatgpt-stop-btn hidden" aria-label="Stop generation" title="Stop generating">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                    <rect x="5" y="5" width="14" height="14" rx="2"></rect>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Refined Output Section (ChatGPT Assistant Message Card) -->
+                <div class="output-section">
+                    <div class="chatgpt-response-card">
+                        <div id="prompt-output" class="output-content empty" contenteditable="false" spellcheck="false">
+                            <div class="empty-state">
+                                <div class="empty-title">Ready to refine your prompt</div>
+                                <div class="empty-subtitle">Pick a suggestion above or enter your rough thoughts in the prompt box to generate a structured CO-STAR prompt.</div>
+                            </div>
+                        </div>
+
+                        <div class="response-footer">
+                            <div class="footer-stats">
+                                <span id="output-badge" class="badge-pill hidden">Editable</span>
+                                <span id="output-counter" class="meta-counter"></span>
+                                <span id="speed-indicator" class="speed-pill hidden"></span>
+                            </div>
+                            <div class="footer-actions">
+                                <button id="clear-output-btn" class="chatgpt-icon-btn hidden" aria-label="Clear output" title="Clear output">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                                <button id="insert-btn" class="chatgpt-action-pill" aria-label="Insert into page" title="Insert into active web page" disabled>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                    <span>Insert</span>
+                                </button>
+                                <button id="copy-btn" class="chatgpt-action-pill primary" aria-label="Copy to clipboard" title="Copy to clipboard" disabled>
+                                    <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                    <span class="copy-label">Copy</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- HISTORY VIEW -->
+        <div id="history-view" class="view">
+            <div class="history-container">
+                <div class="history-header">
+                    <h3>Recent Prompts</h3>
+                    <button id="clear-history" class="history-clear-btn">Clear All</button>
+                </div>
+                <div class="history-search-container">
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="history-search" class="history-search-input" placeholder="Search prompts..." aria-label="Search prompt history">
+                </div>
+                <div id="history-list" class="history-list">
+                    <!-- Injected dynamically -->
+                    <div class="empty-history">No history yet.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div id="error-toast" class="toast"></div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+
+</html>
