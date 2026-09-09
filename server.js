@@ -160,14 +160,14 @@ const server = http.createServer(async (req, res) => {
                 res.end();
             } catch (err) {
                 if (err.name === 'AbortError') {
-                    res.end();
+                    if (!res.writableEnded) res.end();
                 } else {
                     console.error('[PromptPilot Backend Error]:', err);
                     if (!res.headersSent) {
                         res.writeHead(500, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ error: err.message || 'Internal server error' }));
-                    } else {
-                        res.write(`data: {"error": "${err.message}"}\n\n`);
+                    } else if (!res.writableEnded) {
+                        res.write(`data: ${JSON.stringify({ error: err.message || 'Streaming error occurred' })}\n\n`);
                         res.end();
                     }
                 }
@@ -191,22 +191,38 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
-        const filePath = path.join(__dirname, safePath);
-        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-            const ext = path.extname(filePath).toLowerCase();
-            const mimeTypes = {
-                '.html': 'text/html; charset=utf-8',
-                '.css': 'text/css; charset=utf-8',
-                '.js': 'application/javascript; charset=utf-8',
-                '.json': 'application/json; charset=utf-8',
-                '.png': 'image/png',
-                '.svg': 'image/svg+xml'
-            };
-
-            const contentType = mimeTypes[ext] || 'application/octet-stream';
-            res.writeHead(200, { 'Content-Type': contentType });
-            fs.createReadStream(filePath).pipe(res);
+        const filePath = path.resolve(__dirname, '.' + safePath);
+        if (!filePath.startsWith(__dirname)) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Access denied' }));
             return;
+        }
+
+        try {
+            if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+                const ext = path.extname(filePath).toLowerCase();
+                const mimeTypes = {
+                    '.html': 'text/html; charset=utf-8',
+                    '.css': 'text/css; charset=utf-8',
+                    '.js': 'application/javascript; charset=utf-8',
+                    '.json': 'application/json; charset=utf-8',
+                    '.png': 'image/png',
+                    '.svg': 'image/svg+xml'
+                };
+
+                const contentType = mimeTypes[ext] || 'application/octet-stream';
+                res.writeHead(200, { 'Content-Type': contentType });
+                const stream = fs.createReadStream(filePath);
+                stream.on('error', (err) => {
+                    console.error('[File Stream Error]:', err);
+                    if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json' });
+                    if (!res.writableEnded) res.end(JSON.stringify({ error: 'File read error' }));
+                });
+                stream.pipe(res);
+                return;
+            }
+        } catch (fileErr) {
+            console.error('[Static File Error]:', fileErr);
         }
     }
 

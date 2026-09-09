@@ -164,15 +164,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.ok) {
                 if (backendStatusText) backendStatusText.textContent = 'Backend Active • Groq LPU';
                 const dot = document.querySelector('.status-dot');
-                if (dot) dot.classList.remove('offline');
+                if (dot) {
+                    dot.classList.remove('offline');
+                    dot.classList.add('online');
+                }
                 return true;
             }
         } catch (_) {
-            // Local server offline; cloud fallback ready
+            // Local server offline
         }
         if (backendStatusText) backendStatusText.textContent = 'Groq Cloud LPU (Direct Key)';
         const dot = document.querySelector('.status-dot');
-        if (dot) dot.classList.add('offline');
+        if (dot) {
+            dot.classList.add('offline');
+            dot.classList.remove('online');
+        }
         return false;
     }
 
@@ -672,30 +678,34 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
 
-        // Fenced code blocks
+        const tokens = [];
+
+        // 1. Fenced code blocks placeholder
         escaped = escaped.replace(/```([a-z0-9_-]*)\n([\s\S]*?)```/gi, (match, lang, code) => {
-            return `<pre><code>${code.trim()}</code></pre>`;
+            const id = `@@@CODEBLOCK_${tokens.length}@@@`;
+            tokens.push(`<pre><code>${code.trim()}</code></pre>`);
+            return id;
         });
 
-        // Inline code
-        escaped = escaped.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+        // 2. Inline code placeholder
+        escaped = escaped.replace(/`([^`\n]+)`/g, (match, code) => {
+            const id = `@@@INLINECODE_${tokens.length}@@@`;
+            tokens.push(`<code>${code}</code>`);
+            return id;
+        });
 
-        // Horizontal dividers
+        // 3. Horizontal dividers
         escaped = escaped.replace(/^---$/gm, '<hr>');
 
-        // Bold & Italics
-        escaped = escaped.replace(/\*\*([^\*\n]+)\*\*/g, '<strong>$1</strong>');
-        escaped = escaped.replace(/\*([^\*\n]+)\*/g, '<em>$1</em>');
-
-        // Headers
+        // 4. Headers
         escaped = escaped.replace(/^### (.*$)/gim, '<h3>$1</h3>');
         escaped = escaped.replace(/^## (.*$)/gim, '<h2>$1</h2>');
         escaped = escaped.replace(/^# (.*$)/gim, '<h1>$1</h1>');
 
-        // Blockquotes
+        // 5. Blockquotes
         escaped = escaped.replace(/^(&gt;|>)\s?(.*$)/gim, '<blockquote>$2</blockquote>');
 
-        // Numbered lists
+        // 6. Numbered lists
         escaped = escaped.replace(/(?:^[ \t]*\d+\.[ \t]+.*$\n?)+/gm, (match) => {
             const items = match.trim().split('\n').map(l => {
                 const content = l.replace(/^[ \t]*\d+\.[ \t]+/, '');
@@ -704,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<ol>\n${items}\n</ol>\n`;
         });
 
-        // Bullet lists
+        // 7. Bullet lists
         escaped = escaped.replace(/(?:^[ \t]*[-*][ \t]+.*$\n?)+/gm, (match) => {
             const items = match.trim().split('\n').map(l => {
                 const content = l.replace(/^[ \t]*[-*][ \t]+/, '');
@@ -713,17 +723,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<ul>\n${items}\n</ul>\n`;
         });
 
-        // Paragraphs
+        // 8. Bold & Italics
+        escaped = escaped.replace(/\*\*([^\*\n]+)\*\*/g, '<strong>$1</strong>');
+        escaped = escaped.replace(/\*([^\*\n]+)\*/g, '<em>$1</em>');
+
+        // 9. Paragraphs
         const lines = escaped.split('\n');
-        let inPre = false;
-        return lines.map(line => {
-            if (line.includes('<pre>')) inPre = true;
-            if (line.includes('</pre>')) inPre = false;
+        let rendered = lines.map(line => {
             const trimmed = line.trim();
             if (
-                inPre ||
-                trimmed.startsWith('<pre') ||
-                trimmed.startsWith('</pre') ||
+                trimmed.startsWith('@@@CODEBLOCK_') ||
                 trimmed.startsWith('<h') ||
                 trimmed.startsWith('<ul') ||
                 trimmed.startsWith('</ul') ||
@@ -739,6 +748,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return `<p>${line}</p>`;
         }).join('\n');
+
+        // 10. Restore protected code tokens
+        tokens.forEach((content, i) => {
+            rendered = rendered.replace(new RegExp(`@@@CODEBLOCK_${i}@@@`, 'g'), content);
+            rendered = rendered.replace(new RegExp(`@@@INLINECODE_${i}@@@`, 'g'), content);
+        });
+
+        return rendered;
     }
 
     // --- Page Text Injection ---
@@ -794,22 +811,38 @@ document.addEventListener('DOMContentLoaded', () => {
             return el;
         }
 
-        const activeElement = getDeepActiveElement(document);
-        if (!activeElement) {
-            return { success: false, message: 'Please click inside a text input field on the page.' };
+        let activeElement = getDeepActiveElement(document);
+
+        function isElementEditable(el) {
+            if (!el) return false;
+            const isInput = (el.tagName === 'INPUT' && !['button', 'submit', 'checkbox', 'radio', 'file', 'image'].includes(el.type)) || el.tagName === 'TEXTAREA';
+            const isEditable = el.isContentEditable || el.getAttribute('contenteditable') === 'true';
+            return isInput || isEditable;
+        }
+
+        // If active element is body or not editable (e.g. extension stole focus), search for candidate input
+        if (!isElementEditable(activeElement)) {
+            const candidate = document.querySelector('textarea, [contenteditable="true"], div[role="textbox"], input[type="text"]:not([readonly]), input:not([type]):not([readonly])');
+            if (candidate) {
+                activeElement = candidate;
+                activeElement.focus();
+            }
+        }
+
+        if (!isElementEditable(activeElement)) {
+            return { success: false, message: 'Please click inside a text input field on the page first.' };
         }
 
         const isInput = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA';
         const isEditable = activeElement.isContentEditable || activeElement.getAttribute('contenteditable') === 'true';
 
-        if (!isInput && !isEditable) {
-            return { success: false, message: 'Focused element is not an editable field. Click inside a text box first.' };
-        }
-
-        const commandSucceeded = document.execCommand('insertText', false, text);
-        if (commandSucceeded) {
-            return { success: true };
-        }
+        try {
+            activeElement.focus();
+            const commandSucceeded = document.execCommand('insertText', false, text);
+            if (commandSucceeded) {
+                return { success: true };
+            }
+        } catch (_) {}
 
         if (isInput) {
             const start = activeElement.selectionStart || 0;
@@ -830,6 +863,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const textNode = document.createTextNode(text);
                 range.insertNode(textNode);
                 range.collapse(false);
+                activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+                return { success: true };
+            } else {
+                activeElement.innerText += text;
                 activeElement.dispatchEvent(new Event('input', { bubbles: true }));
                 return { success: true };
             }

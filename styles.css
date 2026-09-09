@@ -144,7 +144,9 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   width: 420px;
+  max-width: 100%;
   min-height: 560px;
+  margin: 0 auto;
   font-size: 13px;
   padding: 16px;
   line-height: 1.5;
@@ -157,6 +159,23 @@ body {
   flex-direction: column;
   gap: 16px;
   position: relative;
+}
+
+/* ==========================================================================
+   Views & Navigation
+   ========================================================================== */
+.view {
+  display: none;
+}
+
+.view.active {
+  display: block;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* ==========================================================================

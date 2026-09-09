@@ -17,36 +17,41 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Listener for background messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'checkBackend') {
-        fetch('http://localhost:3000/api/health')
-            .then(res => res.json())
-            .then(data => sendResponse({ online: true, details: data }))
-            .catch(() => sendResponse({ online: false, mode: 'cloud_groq' }));
-        return true; // async response
-    }
+    chrome.storage.local.get(['backend_url'], (res) => {
+        const backendUrl = (res.backend_url || 'http://localhost:3000').replace(/\/+$/, '');
 
-    if (request.action === 'generatePromptFallback') {
-        const { prompt, tone = 'Standard', model = DEFAULT_MODEL } = request;
+        if (request.action === 'checkBackend') {
+            fetch(`${backendUrl}/api/health`)
+                .then(r => r.json())
+                .then(data => sendResponse({ online: true, details: data }))
+                .catch(() => sendResponse({ online: false, mode: 'cloud_groq' }));
+            return;
+        }
 
-        fetch('http://localhost:3000/api/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, tone, model })
-        })
-        .then(async (res) => {
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || `Backend Error: ${res.status}`);
-            }
-            return res.text();
-        })
-        .then(data => {
-            sendResponse({ success: true, raw: data });
-        })
-        .catch(err => {
-            sendResponse({ success: false, error: err.message });
-        });
+        if (request.action === 'generatePromptFallback') {
+            const { prompt, tone = 'Standard', model = DEFAULT_MODEL } = request;
 
-        return true;
-    }
+            fetch(`${backendUrl}/api/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, tone, model })
+            })
+            .then(async (r) => {
+                if (!r.ok) {
+                    const err = await r.json().catch(() => ({}));
+                    throw new Error(err.error || `Backend Error: ${r.status}`);
+                }
+                return r.text();
+            })
+            .then(data => {
+                sendResponse({ success: true, raw: data });
+            })
+            .catch(err => {
+                sendResponse({ success: false, error: err.message });
+            });
+            return;
+        }
+    });
+
+    return true; // async response
 });
